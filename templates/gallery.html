@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>已去背圖片相簿</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f5f5f5;
+            text-align: center;
+            margin: 0;
+        }
+        h1 { margin-top: 20px; }
+        a { text-decoration: none; color: #007bff; }
+
+        .gallery-item { 
+            display: inline-block;
+            text-align: center;
+            margin: 12px;
+            background: white;
+            border-radius: 12px;
+            padding: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.15);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .gallery-item:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+        }
+        .gallery-item img { 
+            width: 200px; 
+            margin: 10px 0; 
+            cursor: pointer; 
+            transition: transform 0.3s;
+        }
+        .gallery-item img:hover { transform: scale(1.05); }
+
+        .lightbox {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0; top: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            justify-content: center; align-items: center;
+        }
+        .lightbox img {
+            max-width: 90vw; max-height: 90vh;
+            width: auto; height: auto; cursor: grab;
+            transition: transform 0.2s ease; border-radius: 10px;
+        }
+
+        .prev, .next {
+            position: fixed; top: 50%; transform: translateY(-50%);
+            font-size: 40px; color: white; background: rgba(0,0,0,0.5);
+            border: none; cursor: pointer; padding: 10px 15px; z-index: 1100; user-select: none; border-radius: 50%;
+        }
+        .prev { left: 20px; }
+        .next { right: 20px; }
+
+        button {
+            background: #ff4d4f; color: white; border: none;
+            padding: 6px 14px; border-radius: 5px; cursor: pointer; font-weight: bold;
+        }
+        button:hover { background: #d9363e; }
+    </style>
+</head>
+<body>
+    <h1>已去背圖片相簿</h1>
+    <a href="/">回上傳頁面</a>
+    <div id="gallery">
+        {% for img in images %}
+            {% set filename = img.replace('/static/output/', '') %}
+            <div class="gallery-item">
+                <img src="{{ img }}" alt="去背圖片" onclick="openLightbox({{ loop.index0 }})">
+                <form action="/delete/{{ filename }}" method="post" style="margin-top:5px;">
+                    <button type="submit">刪除</button>
+                </form>
+            </div>
+        {% endfor %}
+    </div>
+
+    <div id="lightbox" class="lightbox" onclick="closeLightbox(event)">
+        <button class="prev" onclick="prevImage(event)">&#10094;</button>
+        <img id="lightbox-img" src="" alt="放大圖片">
+        <button class="next" onclick="nextImage(event)">&#10095;</button>
+    </div>
+
+    <script>
+        const lightbox = document.getElementById('lightbox');
+        const lightboxImg = document.getElementById('lightbox-img');
+        const galleryImages = Array.from(document.querySelectorAll('#gallery img'));
+        let currentIndex = 0;
+
+        let scale = 1, posX = 0, posY = 0, dragging = false, startX, startY;
+
+        function openLightbox(index) {
+            currentIndex = index;
+            lightbox.style.display = 'flex';
+            lightboxImg.src = galleryImages[index].src;
+            resetTransform();
+        }
+        function closeLightbox(e) { if (e.target === lightbox) lightbox.style.display = 'none'; }
+        function prevImage(e) { e.stopPropagation(); currentIndex=(currentIndex-1+galleryImages.length)%galleryImages.length; openLightbox(currentIndex); }
+        function nextImage(e) { e.stopPropagation(); currentIndex=(currentIndex+1)%galleryImages.length; openLightbox(currentIndex); }
+
+        lightboxImg.addEventListener('wheel', e => {
+            e.preventDefault();
+            scale *= (e.deltaY < 0 ? 1.1 : 0.9);
+            if (scale < 0.1) scale = 0.1;
+            updateTransform();
+        });
+        lightboxImg.addEventListener('mousedown', e => { dragging = true; startX = e.clientX - posX; startY = e.clientY - posY; lightboxImg.style.cursor='grabbing'; });
+        window.addEventListener('mouseup', () => { dragging = false; lightboxImg.style.cursor='grab'; });
+        window.addEventListener('mousemove', e => { if(!dragging) return; posX = e.clientX - startX; posY = e.clientY - startY; updateTransform(); });
+
+        function updateTransform(){ lightboxImg.style.transform = `translate(${posX}px, ${posY}px) scale(${scale})`; }
+        function resetTransform(){ scale = 1; posX = 0; posY = 0; updateTransform(); }
+
+        window.addEventListener('keydown', e => {
+            if (lightbox.style.display !== 'flex') return;
+            if (e.key === "Escape") lightbox.style.display = 'none';
+            else if (e.key === "ArrowLeft") prevImage(e);
+            else if (e.key === "ArrowRight") nextImage(e);
+        });
+    </script>
+</body>
+</html>
